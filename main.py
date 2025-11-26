@@ -18,9 +18,17 @@ JWT_SECRET = os.environ.get("SECRET")
 JWT_ALGORITHM = os.environ.get("ALGORITHM")
 
 def hash_password(password: str) -> str:
+    # Bcrypt has a 72-byte limit, hash longer passwords first
+    if len(password.encode('utf-8')) > 72:
+        import hashlib
+        password = hashlib.sha256(password.encode()).hexdigest()
     return pwd_context.hash(password)
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    # Handle long passwords the same way
+    if len(plain_password.encode('utf-8')) > 72:
+        import hashlib
+        plain_password = hashlib.sha256(plain_password.encode()).hexdigest()
     return pwd_context.verify(plain_password, hashed_password)
 
 app = FastAPI()

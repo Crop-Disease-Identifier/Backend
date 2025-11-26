@@ -30,11 +30,26 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 app = FastAPI()
 
-origins = ["*"]
+# Define allowed origins for CORS
+origins = [
+    "http://localhost:3000",           # Local React dev server
+    "http://localhost:5173",           # Vite dev server
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:5173",
+    "https://frontend-three-mu-82.vercel.app/",  # Production frontend URL
+    "https://frontend-production-*.up.railway.app",  # Railway frontend pattern
+]
+
+# Allow all origins in development, specific origins in production
+if os.getenv("ENVIRONMENT") == "production":
+    allowed_origins = origins
+else:
+    # In development, allow all to be safe
+    allowed_origins = ["*"]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

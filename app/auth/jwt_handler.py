@@ -9,7 +9,8 @@ JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 
 def token_response(token: str):
     return {
-        "access token": token
+        "token": token,
+        "access_token": token
     }
 
 def signJWT(userID: str):

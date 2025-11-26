@@ -4,32 +4,33 @@ from fastapi import FastAPI, Body, Depends, Header
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 import jwt
+import bcrypt
 from app.model import userSchema, userLoginSchema, User
 from app.auth.jwt_handler import signJWT
 from app.email_service import send_welcome_email
 from database import SessionLocal, engine, Base
-from passlib.context import CryptContext
 import os
 
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 JWT_SECRET = os.environ.get("SECRET")
 JWT_ALGORITHM = os.environ.get("ALGORITHM")
 
 def hash_password(password: str) -> str:
-    # Bcrypt has a 72-byte limit, hash longer passwords first
+    """Hash a password using bcrypt"""
+    # Handle long passwords by hashing with sha256 first
     if len(password.encode('utf-8')) > 72:
         import hashlib
         password = hashlib.sha256(password.encode()).hexdigest()
-    return pwd_context.hash(password)
+    salt = bcrypt.gensalt()
+    return bcrypt.hashpw(password.encode('utf-8'), salt).decode('utf-8')
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify a password against its hash"""
     # Handle long passwords the same way
     if len(plain_password.encode('utf-8')) > 72:
         import hashlib
         plain_password = hashlib.sha256(plain_password.encode()).hexdigest()
-    return pwd_context.verify(plain_password, hashed_password)
+    return bcrypt.checkpw(plain_password.encode('utf-8'), hashed_password.encode('utf-8'))
 
 app = FastAPI()
 

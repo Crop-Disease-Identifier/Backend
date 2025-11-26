@@ -6,7 +6,6 @@ pydantic
 python-multipart
 passlib==1.7.4
 bcrypt==4.0.1
-jwt
 resend
 python-dotenv
 email-validator

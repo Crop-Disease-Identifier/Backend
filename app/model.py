@@ -16,12 +16,10 @@ class userSchema(BaseModel):
     fullname: str = Field(default=None)
     email: EmailStr = Field(default=None)
     password: str = Field(default=None, min_length=6, max_length=20)
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 
 class userLoginSchema(BaseModel):
     email: EmailStr = Field(default=None)
     password: str = Field(default=None, min_length=6, max_length=20)
-    class Config:
-        orm_mode = True
+    model_config = {"from_attributes": True}
 

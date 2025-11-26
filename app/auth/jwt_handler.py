@@ -4,7 +4,11 @@ import jwt
 import os
 
 JWT_SECRET = os.environ.get("SECRET")
-JWT_ALGORITHM = os.environ.get("ALGORITHM")
+JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
+
+# Validate that SECRET is set
+if not JWT_SECRET:
+    raise ValueError("SECRET environment variable is not set. Please set it in your environment.")
 
 
 def token_response(token: str):

@@ -12,8 +12,9 @@ from database import SessionLocal, engine, Base
 import os
 
 
+# Load environment variables (validation happens in jwt_handler)
 JWT_SECRET = os.environ.get("SECRET")
-JWT_ALGORITHM = os.environ.get("ALGORITHM")
+JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""

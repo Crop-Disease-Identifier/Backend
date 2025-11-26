@@ -6,15 +6,10 @@ from sqlalchemy.orm import Session
 import jwt
 import bcrypt
 from app.model import userSchema, userLoginSchema, User
-from app.auth.jwt_handler import signJWT
+from app.auth.jwt_handler import signJWT, JWT_SECRET, JWT_ALGORITHM
 from app.email_service import send_welcome_email
 from database import SessionLocal, engine, Base
 import os
-
-
-# Load environment variables (validation happens in jwt_handler)
-JWT_SECRET = os.environ.get("SECRET")
-JWT_ALGORITHM = os.environ.get("ALGORITHM", "HS256")
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""

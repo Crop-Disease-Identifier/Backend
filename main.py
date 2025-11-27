@@ -1,7 +1,7 @@
-
 import uvicorn
-from fastapi import FastAPI, Body, Depends, Header
+from fastapi import FastAPI, Body, Depends, Header, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 import jwt
 import bcrypt
@@ -9,11 +9,14 @@ from app.model import userSchema, userLoginSchema, User
 from app.auth.jwt_handler import signJWT, JWT_SECRET, JWT_ALGORITHM
 from app.email_service import send_welcome_email
 from database import SessionLocal, engine, Base
+import requests, base64, io, os, json, subprocess, sys
+from PIL import Image
 import os
+from ai_model import get_gemini_treatment
+
 
 def hash_password(password: str) -> str:
     """Hash a password using bcrypt"""
-    # Handle long passwords by hashing with sha256 first
     if len(password.encode('utf-8')) > 72:
         import hashlib
         password = hashlib.sha256(password.encode()).hexdigest()
@@ -22,7 +25,6 @@ def hash_password(password: str) -> str:
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """Verify a password against its hash"""
-    # Handle long passwords the same way
     if len(plain_password.encode('utf-8')) > 72:
         import hashlib
         plain_password = hashlib.sha256(plain_password.encode()).hexdigest()
@@ -30,21 +32,27 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 
 app = FastAPI()
 
-# Define allowed origins for CORS
+
+UPLOAD_DIR = "uploads"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
+
+
+
 origins = [
-    "http://localhost:3000",           # Local React dev server
-    "http://localhost:5173",           # Vite dev server
+    "http://localhost:3000", 
+    "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
     "https://frontend-three-mu-82.vercel.app",
 ]
 
-# Allow all origins in development, specific origins in production
+
 if os.getenv("ENVIRONMENT") == "production":
     allowed_origins = origins
 else:
-    # In development, allow all to be safe
-    allowed_origins = origins # Use the defined origins list instead of "*" to support credentials if needed
+    allowed_origins = origins 
 
 app.add_middleware(
     CORSMiddleware,
@@ -123,3 +131,36 @@ def get_current_user(authorization: str = Header(None), db: Session = Depends(ge
 def user_logout():
     """Logout endpoint - token invalidation is handled on the frontend by clearing the token"""
     return {"message": "Successfully logged out"}
+
+
+@app.post("/detection/upload")
+async def analyze_crop_image(image: UploadFile = File(...)):
+    """Analyze uploaded crop image using external API"""
+    try:
+        # Validate file type
+        if not image.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="File must be an image")
+
+        # Read image bytes
+        image_bytes = await image.read()
+        
+        # External API URL
+        api_url = "http://leaf-diseases-detect.vercel.app"
+        
+        # Prepare file for upload
+        files = {
+            "file": (image.filename, image_bytes, image.content_type)
+        }
+        
+        # Call external API
+        response = requests.post(f"{api_url}/disease-detection-file", files=files)
+        
+        if response.status_code != 200:
+             raise HTTPException(status_code=response.status_code, detail=f"External API error: {response.text}")
+             
+        return response.json()
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

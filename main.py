@@ -44,7 +44,7 @@ if os.getenv("ENVIRONMENT") == "production":
     allowed_origins = origins
 else:
     # In development, allow all to be safe
-    allowed_origins = ["*"]
+    allowed_origins = origins # Use the defined origins list instead of "*" to support credentials if needed
 
 app.add_middleware(
     CORSMiddleware,

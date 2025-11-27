@@ -36,8 +36,7 @@ origins = [
     "http://localhost:5173",           # Vite dev server
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "https://frontend-three-mu-82.vercel.app/",  # Production frontend URL
-    "https://frontend-production-*.up.railway.app",  # Railway frontend pattern
+    "https://frontend-three-mu-82.vercel.app",
 ]
 
 # Allow all origins in development, specific origins in production
@@ -50,6 +49,7 @@ else:
 app.add_middleware(
     CORSMiddleware,
     allow_origins=allowed_origins,
+    allow_origin_regex="https://.*\.vercel\.app|https://.*\.railway\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

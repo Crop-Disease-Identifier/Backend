@@ -3,6 +3,10 @@ from fastapi import FastAPI, Body, Depends, Header, UploadFile, File, HTTPExcept
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import jwt
 import bcrypt
 from app.model import userSchema, userLoginSchema, User
@@ -177,9 +181,15 @@ async def analyze_crop_image(image: UploadFile = File(...)):
              print(f"ERROR: External API returned {response.status_code}: {response.text}")
              raise HTTPException(status_code=response.status_code, detail=f"External API error: {response.text}")
         
-        result = response.json()
-        print(f"SUCCESS: Analysis complete")
-        return result
+        detection_result = response.json()
+        print(f"External API Result: {detection_result}")
+        
+        # Finetune with Gemini
+        print("Finetuning result with Gemini...")
+        final_result = await get_gemini_treatment(detection_result)
+        print("Gemini processing complete")
+        
+        return final_result
 
     except HTTPException as e:
         print(f"HTTP Exception: {e.detail}")

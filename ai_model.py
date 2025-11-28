@@ -1,59 +1,60 @@
 import os
+import json
 from google import generativeai as genai
 
 
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
+genai.configure(api_key=os.getenv("GOOGLE_GENERATIVE_AI_API_KEY"))
 
 UPLOAD_DIR = "uploads"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-SYSTEM_PROMPT = """
-You are an expert agricultural consultant AI inside a FastAPI backend. 
-Always provide structured, detailed, and actionable recommendations. 
-
-Rules:
-1. Always base your response on the identified crops and detected plant diseases.
-2. If previous plant analysis is available, consider it for context.
-3. Responses must include:
-   - Plant condition
-   - Immediate treatments
-   - Care tips
-   - When to seek professional help (max 200 words)
-4. Avoid repeating information unnecessarily.
-5. Use a friendly and professional tone.
-6. If no diseases are detected, provide preventive care advice and monitoring tips.
-"""
-# x
-
-async def get_gemini_treatment(crops, diseases):
-    """Generate treatment and care recommendations using Gemini AI."""
+async def get_gemini_treatment(detection_result):
+    """Generate treatment and care recommendations using Gemini AI based on detection results."""
     try:
-        prompt = SYSTEM_PROMPT + "\n\n"
+        prompt = """
+You are an expert agricultural consultant AI.
+I have a plant disease analysis result:
 
-        if crops:
-            prompt += "Identified Crops:\n"
-            for crop in crops:
-                prompt += f"- {crop['name']} ({crop['scientific_name']}): {crop['confidence']}% confidence\n"
-
-        if diseases:
-            prompt += "\nDetected Plant Health Issues:\n"
-            for disease in diseases:
-                prompt += f"- {disease['name']}: {disease['confidence']}% confidence\n"
-        else:
-            prompt += "\nNo diseases detected. Plant appears healthy.\n"
-
+"""
+        prompt += json.dumps(detection_result, indent=2)
+        
         prompt += """
-Provide a concise and structured response following the above rules.
+
+Please analyze this information and provide a refined, user-friendly diagnosis.
+Your output MUST be a valid JSON object with the following structure:
+{
+    "predicted_class": "The name of the disease (refined if necessary)",
+    "symptoms": ["List of clear, observable symptoms"],
+    "treatment": ["Step-by-step treatment recommendations"],
+    "prevention": ["Preventive measures for the future"],
+    "expert_advice": "A brief, encouraging expert tip"
+}
+
+Do not include any markdown formatting (like ```json ... ```). Just the raw JSON string.
 """
 
-        
-        model = genai.GenerativeModel("gemini-1.5-flash")  
-
+        model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content(prompt)
-
-        return response.text.strip()
+        
+        # Clean up response if it contains markdown
+        text = response.text.strip()
+        if text.startswith("```json"):
+            text = text[7:]
+        if text.startswith("```"):
+            text = text[3:]
+        if text.endswith("```"):
+            text = text[:-3]
+            
+        return json.loads(text.strip())
 
     except Exception as e:
         print(f"Gemini Error: {str(e)}")
-        return get_basic_treatment_recommendations(crops, diseases)
+        # Fallback to the original detection result if Gemini fails
+        return {
+            "predicted_class": detection_result.get("disease_name", "Unknown"),
+            "symptoms": detection_result.get("symptoms", []),
+            "treatment": detection_result.get("treatment", []),
+            "prevention": detection_result.get("possible_causes", []),
+            "expert_advice": "Please consult a local agricultural expert."
+        }

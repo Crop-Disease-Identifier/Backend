@@ -1,5 +1,5 @@
 import uvicorn
-from fastapi import FastAPI, Body, Depends, Header, UploadFile, File, HTTPException
+from fastapi import FastAPI, Body, Depends, Header, UploadFile, File, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
@@ -62,6 +62,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    print(f"Incoming request: {request.method} {request.url}")
+    try:
+        response = await call_next(request)
+        print(f"Response status: {response.status_code}")
+        return response
+    except Exception as e:
+        print(f"Request failed: {str(e)}")
+        raise
 
 Base.metadata.create_all(bind=engine)
 
@@ -136,13 +147,18 @@ def user_logout():
 @app.post("/detection/upload")
 async def analyze_crop_image(image: UploadFile = File(...)):
     """Analyze uploaded crop image using external API"""
+    print(f"\n=== UPLOAD ENDPOINT CALLED ===")
+    print(f"Received upload request for file: {image.filename}")
+    print(f"Content type: {image.content_type}")
     try:
         # Validate file type
         if not image.content_type.startswith("image/"):
+            print("ERROR: File is not an image")
             raise HTTPException(status_code=400, detail="File must be an image")
 
         # Read image bytes
         image_bytes = await image.read()
+        print(f"Image bytes read: {len(image_bytes)} bytes")
         
         # External API URL
         api_url = "http://leaf-diseases-detect.vercel.app"
@@ -152,15 +168,22 @@ async def analyze_crop_image(image: UploadFile = File(...)):
             "file": (image.filename, image_bytes, image.content_type)
         }
         
+        print(f"Calling external API: {api_url}/disease-detection-file")
         # Call external API
         response = requests.post(f"{api_url}/disease-detection-file", files=files)
         
+        print(f"External API response status: {response.status_code}")
         if response.status_code != 200:
+             print(f"ERROR: External API returned {response.status_code}: {response.text}")
              raise HTTPException(status_code=response.status_code, detail=f"External API error: {response.text}")
-             
-        return response.json()
+        
+        result = response.json()
+        print(f"SUCCESS: Analysis complete")
+        return result
 
-    except HTTPException:
+    except HTTPException as e:
+        print(f"HTTP Exception: {e.detail}")
         raise
     except Exception as e:
+        print(f"ERROR: {str(e)}")
         raise HTTPException(status_code=500, detail=str(e))
